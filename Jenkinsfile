@@ -111,7 +111,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = 'democontaineregistry.azurecr.io'
+        REGISTRY = 'sandeepcontianerregistry'
         IMAGE_NAME = 'sharks'
         TAG = "build-${BUILD_NUMBER}"
         CONTAINER_NAME = 'sharks-container'
@@ -135,22 +135,22 @@ pipeline {
             }
         }
 
-        stage('Login to Azure ACR') {
+        stage('Login to Docker Registry') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker', passwordVariable: 'AZURE_CLIENT_SECRET', usernameVariable: 'AZURE_CLIENT_ID')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockercredentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     script {
-                        echo "Logging in to Azure ACR"
-                        sh "docker login ${REGISTRY} -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET"
+                        echo "Logging in to Docker Registry"
+                        sh "docker login ${REGISTRY} -u $USERNAME -p $PASSWORD"
                     }
                 }
             }
         }
 
-        stage('Push Docker Image to ACR') {
+        stage('Push Docker Image to Registry') {
             steps {
                 script {
-                    // Push the Docker image to Azure Container Registry
-                    echo "Pushing Docker image to ACR"
+                    // Push the Docker image to the registry
+                    echo "Pushing Docker image to registry"
                     sh "docker push ${REGISTRY}/${IMAGE_NAME}:${TAG}"
                 }
             }
