@@ -140,7 +140,7 @@ pipeline {
                     script {
                         echo "Logging in to Docker Registry"
                         sh """
-                        echo $Password | docker login ${REGISTRY} -u $Username --password-stdin
+                        echo "$Password" | docker login ${REGISTRY} -u "$Username" --password-stdin
                         """
                     }
                 }
