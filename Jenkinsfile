@@ -245,7 +245,7 @@ pipeline {
 
     post {
         failure {
-            echo 'Build or deployment failed'
+            echo 'Build or deployment is failed'
         }
         success {
             echo 'Build and deployment is succeeded'
