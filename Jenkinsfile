@@ -128,7 +128,6 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image with a unique tag
                     echo "Building Docker image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
                     sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${TAG} ."
                 }
@@ -140,7 +139,9 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockercredentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     script {
                         echo "Logging in to Docker Registry"
-                        sh "docker login ${REGISTRY} -u $USERNAME -p $PASSWORD"
+                        sh """
+                        echo $PASSWORD | docker login ${REGISTRY} -u $USERNAME --password-stdin
+                        """
                     }
                 }
             }
@@ -149,7 +150,6 @@ pipeline {
         stage('Push Docker Image to Registry') {
             steps {
                 script {
-                    // Push the Docker image to the registry
                     echo "Pushing Docker image to registry"
                     sh "docker push ${REGISTRY}/${IMAGE_NAME}:${TAG}"
                 }
@@ -159,11 +159,9 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 script {
-                    // Check if the container is already running, and remove it if it is
                     echo "Stopping and removing any existing container with the name ${CONTAINER_NAME}"
                     sh "docker rm -f ${CONTAINER_NAME} || true"
 
-                    // Run the Docker container
                     echo "Deploying container from image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
                     sh """
                         docker run -d \
