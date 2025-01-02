@@ -136,11 +136,11 @@ pipeline {
 
         stage('Login to Docker Registry') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockercredentials', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockercredentials', usernameVariable: 'Username', passwordVariable: 'Password')]) {
                     script {
                         echo "Logging in to Docker Registry"
                         sh """
-                        echo $PASSWORD | docker login ${REGISTRY} -u $USERNAME --password-stdin
+                        echo $Password | docker login ${REGISTRY} -u $Username --password-stdin
                         """
                     }
                 }
