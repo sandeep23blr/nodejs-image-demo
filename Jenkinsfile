@@ -111,7 +111,7 @@ pipeline {
     agent any
 
     environment {
-        REGISTRY = 'sandeepcontianerregistry'
+        REGISTRY = 'sandeepcontianerregistry.azurecr.io' // Ensure correct registry address
         IMAGE_NAME = 'sharks'
         TAG = "build-${BUILD_NUMBER}"
         CONTAINER_NAME = 'sharks-container'
@@ -140,7 +140,7 @@ pipeline {
                     script {
                         echo "Logging in to Docker Registry"
                         sh """
-                        echo "$PASSWORD" | docker login ${REGISTRY} -u "$USERNAME" --password-stdin
+                        echo "$Password" | docker login ${REGISTRY} -u "$Username" --password-stdin
                         """
                     }
                 }
