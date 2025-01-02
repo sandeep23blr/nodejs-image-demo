@@ -19,3 +19,4 @@ COPY --chown=node:node . .
 EXPOSE 8082
 
 CMD [ "node", "app.js" ]
+
