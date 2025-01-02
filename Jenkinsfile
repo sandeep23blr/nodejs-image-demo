@@ -106,7 +106,7 @@ ENDSSH
     }
 }
 */
-/*
+
 pipeline {
     agent any
 
@@ -187,68 +187,6 @@ pipeline {
         }
         success {
             echo 'Build and deployment succeeded'
-        }
-    }
-}
-*/
-pipeline {
-    agent any
-
-    environment {
-        REGISTRY = 'local' // No remote registry
-        IMAGE_NAME = 'sharks'
-        TAG = "build-${BUILD_NUMBER}"
-        CONTAINER_NAME = 'sharks-container'
-        CONTAINER_PORT = '8082'
-    }
-
-    stages {
-        stage('Checkout SCM') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    echo "Building Docker image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
-                    sh "docker build -t ${IMAGE_NAME}:${TAG} ."
-                }
-            }
-        }
-
-        stage('Deploy Container') {
-            steps {
-                script {
-                    echo "Stopping and removing any existing container with the name ${CONTAINER_NAME}"
-                    sh "docker rm -f ${CONTAINER_NAME} || true"
-
-                    echo "Deploying container from image ${IMAGE_NAME}:${TAG}"
-                    sh """
-                        docker run -d \
-                        --name ${CONTAINER_NAME} \
-                        -p ${CONTAINER_PORT}:${CONTAINER_PORT} \
-                        ${IMAGE_NAME}:${TAG}
-                    """
-                }
-            }
-        }
-
-        stage('Cleanup') {
-            steps {
-                echo 'Cleaning up local Docker resources'
-                sh 'docker system prune -f'
-            }
-        }
-    }
-
-    post {
-        failure {
-            echo 'Build or deployment is failed'
-        }
-        success {
-            echo 'Build and deployment is succeeded'
         }
     }
 }
