@@ -1,4 +1,3 @@
-/*
 pipeline {
     agent any
 
@@ -50,7 +49,6 @@ ENDSSH
         }
     }
 }
-*/
 
 /*
 pipeline {
@@ -107,6 +105,7 @@ ENDSSH
 }
 */
 
+/*
 pipeline {
     agent any
 
@@ -191,3 +190,4 @@ pipeline {
     }
 }
 
+*/
