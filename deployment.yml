@@ -1,7 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nodejs-deployment
+  name: nodejs-app
+  labels:
+    app: nodejs-app
 spec:
   replicas: 2
   selector:
@@ -14,6 +16,7 @@ spec:
     spec:
       containers:
       - name: nodejs-container
-        image: dockerhub_username/nodejs-app:latest
+        image: 953596634933.dkr.ecr.ap-south-1.amazonaws.com/kubernetes:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8082
