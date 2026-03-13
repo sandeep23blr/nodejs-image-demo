@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shark-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - sandeeptest.online
+    secretName: sandeeptest-tls
+  rules:
+  - host: sandeeptest.online
+    http:
+      paths:
+      - path: /bar
+        pathType: Prefix
+        backend:
+          service:
+            name: loadbalancerservice
+            port:
+              number: 80
