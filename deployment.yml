@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nodejs-app
-  labels:
-    app: nodejs-app
 spec:
   replicas: 2
   selector:
@@ -14,6 +12,9 @@ spec:
       labels:
         app: nodejs-app
     spec:
+      imagePullSecrets:
+      - name: ecr-secret
+
       containers:
       - name: nodejs-container
         image: 953596634933.dkr.ecr.ap-south-1.amazonaws.com/kubernetes:latest
