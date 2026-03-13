@@ -6,13 +6,21 @@ environment {
     ACCOUNT_ID = "953596634933"
     IMAGE_NAME = "kubernetes"
     ECR_REPO = "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}"
+    KUBECONFIG = "/var/jenkins_home/.kube/config"
 }
 
 stages {
 
+    stage('Clean Workspace') {
+        steps {
+            cleanWs()
+        }
+    }
+
     stage('Clone Repository') {
         steps {
-            git branch: 'development', url: 'https://github.com/sandeep23blr/nodejs-image-demo.git'
+            git branch: 'development',
+            url: 'https://github.com/sandeep23blr/nodejs-image-demo.git'
         }
     }
 
@@ -57,13 +65,25 @@ stages {
     stage('Deploy to Kubernetes') {
         steps {
             sh '''
-            kubectl apply -f deployment.yml
-            kubectl apply -f service.yml
+            export KUBECONFIG=$KUBECONFIG
+
+            kubectl apply -f deployment.yml --validate=false
+            kubectl apply -f service.yml --validate=false
+
             kubectl rollout restart deployment nodejs-app
             '''
         }
     }
 
+}
+
+post {
+    success {
+        echo "Deployment completed successfully!"
+    }
+    failure {
+        echo "Pipeline failed. Check logs."
+    }
 }
 
 }
