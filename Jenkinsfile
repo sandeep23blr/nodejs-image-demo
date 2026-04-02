@@ -113,23 +113,11 @@ pipeline {
             }
         }
 
-        stage('Configure Docker Auth') {
-            steps {
-                sh '''
-                rm -rf ~/.docker
-                mkdir -p ~/.docker
-                gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-                '''
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 script {
                     def hash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     env.TAG = "${hash}-${BUILD_NUMBER}"
-
-                    echo "Building image with tag: ${TAG}"
 
                     sh "docker build -t ${IMAGE_NAME}:${TAG} ."
                 }
@@ -139,7 +127,22 @@ pipeline {
         stage('Tag & Push Image') {
             steps {
                 sh '''
+                set -e
+
+                echo "Getting token from metadata..."
+
+                TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
+                http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token \
+                | sed -n 's/.*"access_token":"\\([^"]*\\)".*/\\1/p')
+
+                echo "Docker login using token..."
+
+                echo $TOKEN | docker login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
+
+                echo "Tagging image..."
                 docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_URI}:${TAG}
+
+                echo "Pushing image..."
                 docker push ${IMAGE_URI}:${TAG}
                 '''
             }
@@ -155,7 +158,6 @@ pipeline {
                     ).trim()
 
                     if (exists == "${CONTAINER_NAME}") {
-                        echo "Stopping existing container..."
                         sh '''
                         docker stop ${CONTAINER_NAME} || true
                         docker rm ${CONTAINER_NAME} || true
@@ -178,22 +180,10 @@ pipeline {
         stage('Cleanup') {
             steps {
                 sh '''
-                echo "Cleaning unused containers..."
                 docker container prune -f
-
-                echo "Cleaning unused images..."
                 docker image prune -f
                 '''
             }
-        }
-    }
-
-    post {
-        success {
-            echo "✅ Deployment successful!"
-        }
-        failure {
-            echo "❌ Pipeline failed!"
         }
     }
 }
