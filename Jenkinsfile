@@ -137,13 +137,10 @@ pipeline {
         stage('Tag & Push Image') {
             steps {
                 sh '''
-                # 🔐 Fix: Authenticate Docker with Artifact Registry
+                # Authenticate Docker with Artifact Registry
                 gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
 
-                # Tag image
                 docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_URI}:${TAG}
-
-                # Push image
                 docker push ${IMAGE_URI}:${TAG}
                 '''
             }
@@ -153,7 +150,7 @@ pipeline {
             steps {
                 script {
 
-                    # Check if container exists
+                    // Check if container exists
                     def exists = sh(
                         script: "docker ps -a --filter 'name=${CONTAINER_NAME}' --format '{{.Names}}'",
                         returnStdout: true
@@ -167,10 +164,8 @@ pipeline {
                         '''
                     }
 
-                    # Pull latest image
                     sh "docker pull ${IMAGE_URI}:${TAG}"
 
-                    # Run new container
                     sh '''
                     docker run -d \
                         --name ${CONTAINER_NAME} \
@@ -185,10 +180,7 @@ pipeline {
         stage('Cleanup') {
             steps {
                 sh '''
-                echo "Cleaning unused containers..."
                 docker container prune -f
-
-                echo "Cleaning unused images..."
                 docker image prune -f
                 '''
             }
