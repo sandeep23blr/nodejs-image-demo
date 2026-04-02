@@ -137,10 +137,15 @@ pipeline {
         stage('Tag & Push Image') {
             steps {
                 sh '''
-                # Authenticate Docker with Artifact Registry
+                set -e
+
+                echo "Authenticating Docker with GCP..."
                 gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
 
+                echo "Tagging image..."
                 docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_URI}:${TAG}
+
+                echo "Pushing image..."
                 docker push ${IMAGE_URI}:${TAG}
                 '''
             }
@@ -164,8 +169,10 @@ pipeline {
                         '''
                     }
 
+                    // Pull latest image
                     sh "docker pull ${IMAGE_URI}:${TAG}"
 
+                    // Run new container
                     sh '''
                     docker run -d \
                         --name ${CONTAINER_NAME} \
@@ -180,7 +187,10 @@ pipeline {
         stage('Cleanup') {
             steps {
                 sh '''
+                echo "Cleaning unused containers..."
                 docker container prune -f
+
+                echo "Cleaning unused images..."
                 docker image prune -f
                 '''
             }
