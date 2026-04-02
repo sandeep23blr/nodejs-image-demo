@@ -1,23 +1,23 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nodejs-app
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: nodejs-app
-  template:
-    metadata:
-      labels:
-        app: nodejs-app
-    spec:
-      imagePullSecrets:
-      - name: ecr-secret
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: nodejs-app
+# spec:
+#   replicas: 2
+#   selector:
+#     matchLabels:
+#       app: nodejs-app
+#   template:
+#     metadata:
+#       labels:
+#         app: nodejs-app
+#     spec:
+#       imagePullSecrets:
+#       - name: ecr-secret
 
-      containers:
-      - name: nodejs-container
-        image: 953596634933.dkr.ecr.ap-south-1.amazonaws.com/kubernetes:latest
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 8082
+#       containers:
+#       - name: nodejs-container
+#         image: 953596634933.dkr.ecr.ap-south-1.amazonaws.com/kubernetes:latest
+#         imagePullPolicy: Always
+#         ports:
+#         - containerPort: 8082
