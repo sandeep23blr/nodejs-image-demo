@@ -113,14 +113,6 @@ pipeline {
             }
         }
 
-        stage('Configure GCP Auth') {
-            steps {
-                sh '''
-                gcloud auth configure-docker ${REGION}-docker.pkg.dev -q
-                '''
-            }
-        }
-
         stage('Build Docker Image') {
             steps {
                 script {
@@ -139,8 +131,14 @@ pipeline {
                 sh '''
                 set -e
 
-                echo "Authenticating Docker with GCP..."
-                gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
+                echo "Fetching access token from metadata server..."
+
+                TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
+                http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token \
+                | grep access_token | cut -d '"' -f 4)
+
+                echo "Logging into Artifact Registry..."
+                echo $TOKEN | docker login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
 
                 echo "Tagging image..."
                 docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_URI}:${TAG}
