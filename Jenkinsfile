@@ -113,13 +113,23 @@ pipeline {
             }
         }
 
+        stage('Configure Docker Auth') {
+            steps {
+                sh '''
+                rm -rf ~/.docker
+                mkdir -p ~/.docker
+                gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+                '''
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
                     def hash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     env.TAG = "${hash}-${BUILD_NUMBER}"
 
-                    echo "Image Tag: ${TAG}"
+                    echo "Building image with tag: ${TAG}"
 
                     sh "docker build -t ${IMAGE_NAME}:${TAG} ."
                 }
@@ -129,21 +139,7 @@ pipeline {
         stage('Tag & Push Image') {
             steps {
                 sh '''
-                set -e
-
-                echo "Fetching access token from metadata server..."
-
-                TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
-                http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token \
-                | grep access_token | cut -d '"' -f 4)
-
-                echo "Logging into Artifact Registry..."
-                echo $TOKEN | docker login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
-
-                echo "Tagging image..."
                 docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_URI}:${TAG}
-
-                echo "Pushing image..."
                 docker push ${IMAGE_URI}:${TAG}
                 '''
             }
@@ -153,24 +149,21 @@ pipeline {
             steps {
                 script {
 
-                    // Check if container exists
                     def exists = sh(
                         script: "docker ps -a --filter 'name=${CONTAINER_NAME}' --format '{{.Names}}'",
                         returnStdout: true
                     ).trim()
 
                     if (exists == "${CONTAINER_NAME}") {
-                        echo "Stopping and removing existing container..."
+                        echo "Stopping existing container..."
                         sh '''
                         docker stop ${CONTAINER_NAME} || true
                         docker rm ${CONTAINER_NAME} || true
                         '''
                     }
 
-                    // Pull latest image
                     sh "docker pull ${IMAGE_URI}:${TAG}"
 
-                    // Run new container
                     sh '''
                     docker run -d \
                         --name ${CONTAINER_NAME} \
