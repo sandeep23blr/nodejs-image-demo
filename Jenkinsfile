@@ -1,89 +1,195 @@
+// pipeline {
+// agent any
+
+// environment {
+//     AWS_REGION = "ap-south-1"
+//     ACCOUNT_ID = "953596634933"
+//     IMAGE_NAME = "kubernetes"
+//     ECR_REPO = "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}"
+//     KUBECONFIG = "/var/jenkins_home/.kube/config"
+// }
+
+// stages {
+
+//     stage('Clean Workspace') {
+//         steps {
+//             cleanWs()
+//         }
+//     }
+
+//     stage('Clone Repository') {
+//         steps {
+//             git branch: 'development',
+//             url: 'https://github.com/sandeep23blr/nodejs-image-demo.git'
+//         }
+//     }
+
+//     stage('Build Docker Image') {
+//         steps {
+//             sh '''
+//             docker build -t $IMAGE_NAME .
+//             '''
+//         }
+//     }
+
+//     stage('Login to AWS ECR') {
+//         steps {
+//             withCredentials([[
+//                 $class: 'AmazonWebServicesCredentialsBinding',
+//                 credentialsId: 'AWS_credentials'
+//             ]]) {
+//                 sh '''
+//                 aws ecr get-login-password --region $AWS_REGION \
+//                 | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+//                 '''
+//             }
+//         }
+//     }
+
+//     stage('Tag Docker Image') {
+//         steps {
+//             sh '''
+//             docker tag $IMAGE_NAME:latest $ECR_REPO:latest
+//             '''
+//         }
+//     }
+
+//     stage('Push Image to ECR') {
+//         steps {
+//             sh '''
+//             docker push $ECR_REPO:latest
+//             '''
+//         }
+//     }
+
+//     stage('Deploy to Kubernetes') {
+//         steps {
+//             sh '''
+//             export KUBECONFIG=$KUBECONFIG
+
+//             kubectl apply -f deployment.yml --validate=false
+//             kubectl apply -f service.yml --validate=false
+
+//             kubectl rollout restart deployment nodejs-app
+//             '''
+//         }
+//     }
+
+// }
+
+// post {
+//     success {
+//         echo "Deployment completed successfully!"
+//     }
+//     failure {
+//         echo "Pipeline failed. Check logs."
+//     }
+// }
+
+// }
+
 pipeline {
-agent any
+    agent any
 
-environment {
-    AWS_REGION = "ap-south-1"
-    ACCOUNT_ID = "953596634933"
-    IMAGE_NAME = "kubernetes"
-    ECR_REPO = "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}"
-    KUBECONFIG = "/var/jenkins_home/.kube/config"
-}
+    environment {
+        PROJECT_ID = "YOUR_PROJECT_ID"
+        REGION = "asia-south1"
+        REPO = "my-docker-repo"
 
-stages {
+        IMAGE_NAME = "mini_crm"
+        CONTAINER_NAME = "mini_crm"
 
-    stage('Clean Workspace') {
-        steps {
-            cleanWs()
-        }
+        CONTAINER_PORT = "8787"
+        HOST_PORT = "8787"
+
+        IMAGE_URI = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}"
     }
 
-    stage('Clone Repository') {
-        steps {
-            git branch: 'development',
-            url: 'https://github.com/sandeep23blr/nodejs-image-demo.git'
-        }
-    }
+    stages {
 
-    stage('Build Docker Image') {
-        steps {
-            sh '''
-            docker build -t $IMAGE_NAME .
-            '''
+        stage('Checkout Code') {
+            steps {
+                // Uses Jenkins job SCM config
+                checkout scm
+            }
         }
-    }
 
-    stage('Login to AWS ECR') {
-        steps {
-            withCredentials([[
-                $class: 'AmazonWebServicesCredentialsBinding',
-                credentialsId: 'AWS_credentials'
-            ]]) {
+        stage('Configure GCP Auth') {
+            steps {
                 sh '''
-                aws ecr get-login-password --region $AWS_REGION \
-                | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                gcloud auth configure-docker ${REGION}-docker.pkg.dev -q
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    def hash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    env.TAG = "${hash}-${BUILD_NUMBER}"
+
+                    echo "Image Tag: ${TAG}"
+
+                    sh "docker build -t ${IMAGE_NAME}:${TAG} ."
+                }
+            }
+        }
+
+        stage('Tag & Push Image') {
+            steps {
+                sh '''
+                docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_URI}:${TAG}
+                docker push ${IMAGE_URI}:${TAG}
+                '''
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                script {
+
+                    def exists = sh(
+                        script: "docker ps -a --filter 'name=${CONTAINER_NAME}' --format '{{.Names}}'",
+                        returnStdout: true
+                    ).trim()
+
+                    if (exists == "${CONTAINER_NAME}") {
+                        echo "Stopping existing container..."
+                        sh '''
+                        docker stop ${CONTAINER_NAME} || true
+                        docker rm ${CONTAINER_NAME} || true
+                        '''
+                    }
+
+                    sh "docker pull ${IMAGE_URI}:${TAG}"
+
+                    sh '''
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p ${HOST_PORT}:${CONTAINER_PORT} \
+                        --restart=always \
+                        ${IMAGE_URI}:${TAG}
+                    '''
+                }
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                sh '''
+                docker container prune -f
+                docker image prune -f
                 '''
             }
         }
     }
 
-    stage('Tag Docker Image') {
-        steps {
-            sh '''
-            docker tag $IMAGE_NAME:latest $ECR_REPO:latest
-            '''
+    post {
+        success {
+            echo "✅ Deployment successful!"
+        }
+        failure {
+            echo "❌ Pipeline failed!"
         }
     }
-
-    stage('Push Image to ECR') {
-        steps {
-            sh '''
-            docker push $ECR_REPO:latest
-            '''
-        }
-    }
-
-    stage('Deploy to Kubernetes') {
-        steps {
-            sh '''
-            export KUBECONFIG=$KUBECONFIG
-
-            kubectl apply -f deployment.yml --validate=false
-            kubectl apply -f service.yml --validate=false
-
-            kubectl rollout restart deployment nodejs-app
-            '''
-        }
-    }
-
-}
-
-post {
-    success {
-        echo "Deployment completed successfully!"
-    }
-    failure {
-        echo "Pipeline failed. Check logs."
-    }
-}
-
 }
