@@ -92,15 +92,15 @@ pipeline {
     agent any
 
     environment {
-        PROJECT_ID = "YOUR_PROJECT_ID"
+        PROJECT_ID = "minicrm-491508"
         REGION = "asia-south1"
-        REPO = "my-docker-repo"
+        REPO = "mini-crm"
 
-        IMAGE_NAME = "mini_crm"
-        CONTAINER_NAME = "mini_crm"
+        IMAGE_NAME = "mini-crm"
+        CONTAINER_NAME = "test-node"
 
-        CONTAINER_PORT = "8787"
-        HOST_PORT = "8787"
+        CONTAINER_PORT = "8082"
+        HOST_PORT = "8082"
 
         IMAGE_URI = "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}"
     }
