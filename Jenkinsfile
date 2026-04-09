@@ -96,7 +96,7 @@ pipeline {
         REGION = "asia-south1"
         REPO = "docker-images"
 
-        IMAGE_NAME = "mini-crm"
+        IMAGE_NAME = "shark"
         CONTAINER_NAME = "test-node"
 
         CONTAINER_PORT = "8082"
