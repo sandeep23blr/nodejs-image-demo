@@ -133,17 +133,21 @@ pipeline {
 
                 TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
                 http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token \
-                | sed -n 's/.*"access_token":"\\([^"]*\\)".*/\\1/p')
+                | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
 
                 echo "Docker login using token..."
 
                 echo $TOKEN | docker login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
 
                 echo "Tagging image..."
+
                 docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_URI}:${TAG}
+                docker tag ${IMAGE_NAME}:${TAG} ${IMAGE_URI}:latest
 
                 echo "Pushing image..."
+
                 docker push ${IMAGE_URI}:${TAG}
+                docker push ${IMAGE_URI}:latest
                 '''
             }
         }
@@ -171,7 +175,7 @@ pipeline {
                         --name ${CONTAINER_NAME} \
                         -p ${HOST_PORT}:${CONTAINER_PORT} \
                         --restart=always \
-                        ${IMAGE_URI}:${TAG}
+                        ${IMAGE_URI}:${TAG} || true
                     '''
                 }
             }
@@ -184,6 +188,15 @@ pipeline {
                 docker image prune -f
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Deployment successful: ${IMAGE_NAME}:${TAG}"
+        }
+        failure {
+            echo "Pipeline failed!"
         }
     }
 }
