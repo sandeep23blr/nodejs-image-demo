@@ -119,6 +119,8 @@ pipeline {
                     def hash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     env.TAG = "${hash}-${BUILD_NUMBER}"
 
+                    echo "Building image: ${IMAGE_NAME}:${TAG}"
+
                     sh "docker build -t ${IMAGE_NAME}:${TAG} ."
                 }
             }
@@ -135,7 +137,7 @@ pipeline {
                 http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token \
                 | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
 
-                echo "Docker login using token..."
+                echo "Docker login..."
 
                 echo $TOKEN | docker login -u oauth2accesstoken --password-stdin https://${REGION}-docker.pkg.dev
 
@@ -148,6 +150,8 @@ pipeline {
 
                 docker push ${IMAGE_URI}:${TAG}
                 docker push ${IMAGE_URI}:latest
+
+                echo "Image pushed: ${IMAGE_URI}:${TAG}"
                 '''
             }
         }
@@ -156,19 +160,25 @@ pipeline {
             steps {
                 script {
 
+                    echo "Checking existing container..."
+
                     def exists = sh(
                         script: "docker ps -a --filter 'name=${CONTAINER_NAME}' --format '{{.Names}}'",
                         returnStdout: true
                     ).trim()
 
                     if (exists == "${CONTAINER_NAME}") {
+                        echo "Stopping existing container..."
                         sh '''
                         docker stop ${CONTAINER_NAME} || true
                         docker rm ${CONTAINER_NAME} || true
                         '''
                     }
 
+                    echo "Pulling latest image..."
                     sh "docker pull ${IMAGE_URI}:${TAG}"
+
+                    echo "Running container..."
 
                     sh '''
                     docker run -d \
@@ -181,9 +191,10 @@ pipeline {
             }
         }
 
-        stage('Cleanup') {
+        stage('Cleanup (Local Only)') {
             steps {
                 sh '''
+                echo "Cleaning unused local containers and images..."
                 docker container prune -f
                 docker image prune -f
                 '''
@@ -193,7 +204,7 @@ pipeline {
 
     post {
         success {
-            echo "Deployment successful: ${IMAGE_NAME}:${TAG}"
+            echo "Deployment successful: ${IMAGE_URI}:${TAG}"
         }
         failure {
             echo "Pipeline failed!"
