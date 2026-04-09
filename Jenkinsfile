@@ -94,7 +94,7 @@ pipeline {
     environment {
         PROJECT_ID = "minicrm-491508"
         REGION = "asia-south1"
-        REPO = "mini-crm"
+        REPO = "docker-images"
 
         IMAGE_NAME = "mini-crm"
         CONTAINER_NAME = "test-node"
