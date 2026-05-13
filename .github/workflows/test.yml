@@ -56,8 +56,10 @@ jobs:
 
             docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} -p ${{ secrets.GHCR_TOKEN }}
 
-            docker compose pull
+            docker-compose pull
 
-            docker compose up -d
+            docker-compose up -d
 
             docker image prune -f
+
+            docker ps
