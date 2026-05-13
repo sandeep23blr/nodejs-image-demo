@@ -105,7 +105,6 @@ ENDSSH
         }
     }
 }
-
 /*
 pipeline {
     agent any
