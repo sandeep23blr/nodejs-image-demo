@@ -1,9 +1,13 @@
-name: Build Docker Image
+name: Build and Deploy Docker Application
 
 on:
   push:
     branches:
       - main
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
 
@@ -25,8 +29,26 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ghcr.io/${{ secrets.GHCR_USERNAME }}/node-app:${{ github.sha }} .
+          docker build -t ghcr.io/${{ secrets.GHCR_USERNAME }}/node-app:latest .
 
       - name: Push Docker Image
         run: |
-          docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/node-app:${{ github.sha }}
+          docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/node-app:latest
+
+      - name: Deploy Application
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+
+            docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} -p ${{ secrets.GHCR_TOKEN }}
+
+            cd /opt/node-app
+
+            docker compose pull
+
+            docker compose up -d
+
+            docker image prune -f
