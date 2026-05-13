@@ -9,7 +9,10 @@ jobs:
 
   docker-build:
 
-    runs-on: Teste_runner
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
 
     steps:
 
