@@ -1,14 +1,29 @@
-name: Test Runner
+name: Build Docker Image
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-  test-runner:
-    runs-on: self-hosted
+
+  docker-build:
+
+    runs-on: Teste_runner
 
     steps:
-      - name: Check Runner
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
         run: |
-          hostname
-          docker --version
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ghcr.io/${{ secrets.GHCR_USERNAME }}/node-app:${{ github.sha }} .
+
+      - name: Push Docker Image
+        run: |
+          docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/node-app:${{ github.sha }}
