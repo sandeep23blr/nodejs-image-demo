@@ -2,6 +2,9 @@ name: Detect Runner and Test SSH
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature
 
 jobs:
   ssh-test:
@@ -11,8 +14,6 @@ jobs:
       - name: Detect Runner Details
         run: |
           echo "Runner Name: $RUNNER_NAME"
-          echo "Runner OS: $RUNNER_OS"
-          echo "Runner Architecture: $RUNNER_ARCH"
 
       - name: Test SSH Connectivity
         shell: bash
@@ -27,4 +28,3 @@ jobs:
             echo "SSH CONNECTION TEST FAILED"
             exit 1
           fi
-
