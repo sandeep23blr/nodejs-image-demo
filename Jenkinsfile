@@ -1,193 +1,190 @@
-/*
-pipeline {
-    agent any
-
-    stages {
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    // Build the Docker image locally
-                    sh 'docker build -t nodejs-docker-app .'
-                    
-                    // Save the Docker image as a tar file
-                    sh 'docker save -o nodejs-docker-app.tar nodejs-docker-app'
-                }
-            }
-        }
-
-        stage('Deploy to Second EC2 Instance') {
-            steps {
-                script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'SSHtoken', keyFileVariable: 'Key')]) {
-                        // Copy the Docker image tar file to the EC2 instance
-                        sh '''
-                        scp -o StrictHostKeyChecking=no -i $Key nodejs-docker-app.tar ec2-user@3.109.60.118:/home/ec2-user/
-                        '''
-
-                        // SSH into the EC2 instance, load the image, and run the container
-                        sh '''
-                        ssh -o StrictHostKeyChecking=no -i $Key ec2-user@3.109.60.118 << 'ENDSSH'
-docker load -i /home/ec2-user/nodejs-docker-app.tar
-if [ $(docker ps -q -f name=nodejs-docker-container) ]; then
-    docker stop nodejs-docker-container
-    docker rm nodejs-docker-container
-fi
-docker run -d -p 8082:8082 --name nodejs-docker-container nodejs-docker-app
-ENDSSH
-                        '''
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Node.js Docker application deployed successfully on the EC2 instance!'
-        }
-        failure {
-            echo 'Deployment failed. Please check the logs for details.'
-        }
-    }
-}
-
-*/
-
-pipeline {
-    agent any
-
-    stages {
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    // Build the Docker image locally
-                    sh 'docker build -t nodejs-docker-app .'
-                    
-                    // Save the Docker image as a tar file
-                    sh 'docker save -o nodejs-docker-app.tar nodejs-docker-app'
-                }
-            }
-        }
-
-        stage('Deploy to Second EC2 Instance') {
-            steps {
-                script {
-                    withCredentials([sshUserPrivateKey(credentialsId: 'SSHtoken', keyFileVariable: 'Key')]) {
-                        // Copy the Docker image tar file to the EC2 instance
-                        sh '''
-                        scp -o StrictHostKeyChecking=no -i $Key nodejs-docker-app.tar ec2-user@3.109.60.118:/home/ec2-user/
-                        '''
-
-                        // SSH into the EC2 instance, load the image, and run the container
-                        sh '''
-                        ssh -o StrictHostKeyChecking=no -i $Key ec2-user@3.109.60.118 << 'ENDSSH'
-docker load -i /home/ec2-user/nodejs-docker-app.tar
-
-# Stop and remove any existing container with the same name
-docker rm -f nodejs-docker-container || true
-
-# Run the new container
-docker run -d -p 8082:8082 --name nodejs-docker-container nodejs-docker-app:latest
-ENDSSH
-                        '''
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Node.js Docker application deployed successfully on the EC2 instance!'
-        }
-        failure {
-            echo 'Deployment failed. Please check the logs for details.'
-        }
-    }
-}
-
-/*
 pipeline {
     agent any
 
     environment {
-        REGISTRY = 'sandeepcontianerregistry.azurecr.io' // Ensure correct registry address
-        IMAGE_NAME = 'sharks'
-        TAG = "build-${BUILD_NUMBER}"
-        CONTAINER_NAME = 'sharks-container'
-        CONTAINER_PORT = '8082'  // Change to your desired port
+        IMAGE_NAME = "interntest"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+
+        CONTAINER_NAME = "intern"
+
+        HOST_PORT = "8082"
+        CONTAINER_PORT = "8082"
+
+        GIT_BRANCH = "main"
+        GIT_REPOSITORY = "https://github.com/sandeep23blr/nodejs-image-demo.git"
+        GIT_CREDENTIALS = "gitcred"
     }
 
     stages {
-        stage('Checkout SCM') {
+
+        stage('Checkout Latest Code') {
             steps {
-                checkout scm
+                echo "========================================"
+                echo "Checking Out Latest Code"
+                echo "========================================"
+
+                git(
+                    branch: "${GIT_BRANCH}",
+                    credentialsId: "${GIT_CREDENTIALS}",
+                    url: "${GIT_REPOSITORY}"
+                )
+            }
+        }
+
+        stage('Verify Source Code') {
+            steps {
+                sh '''
+                    echo "========================================"
+                    echo "Workspace"
+                    echo "========================================"
+
+                    pwd
+
+                    echo ""
+                    echo "Files:"
+                    ls -la
+
+                    echo ""
+                    echo "Git Commit:"
+                    git log -1 --oneline
+
+                    echo ""
+                    echo "Dockerfile:"
+                    ls -l Dockerfile
+                '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    echo "Building Docker image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
-                    sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${TAG} ."
-                }
+                sh '''
+                    echo "========================================"
+                    echo "Building Docker Image"
+                    echo "========================================"
+
+                    docker build \
+                        -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                        .
+
+                    echo ""
+                    echo "Docker Image Created:"
+                    docker images ${IMAGE_NAME}
+                '''
             }
         }
 
-        stage('Login to Docker Registry') {
+        stage('Stop Existing Container') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockercredentials', usernameVariable: 'Username', passwordVariable: 'Password')]) {
-                    script {
-                        echo "Logging in to Docker Registry"
-                        sh """
-                        echo "$Password" | docker login ${REGISTRY} -u "$Username" --password-stdin
-                        """
-                    }
-                }
+                sh '''
+                    echo "========================================"
+                    echo "Stopping Existing Container"
+                    echo "========================================"
+
+                    docker stop ${CONTAINER_NAME} || true
+                '''
             }
         }
 
-        stage('Push Docker Image to Registry') {
+        stage('Remove Existing Container') {
             steps {
-                script {
-                    echo "Pushing Docker image to registry"
-                    sh "docker push ${REGISTRY}/${IMAGE_NAME}:${TAG}"
-                }
+                sh '''
+                    echo "========================================"
+                    echo "Removing Existing Container"
+                    echo "========================================"
+
+                    docker rm ${CONTAINER_NAME} || true
+                '''
             }
         }
 
-        stage('Deploy Container') {
+        stage('Run Docker Container') {
             steps {
-                script {
-                    echo "Stopping and removing any existing container with the name ${CONTAINER_NAME}"
-                    sh "docker rm -f ${CONTAINER_NAME} || true"
+                sh '''
+                    echo "========================================"
+                    echo "Starting New Container"
+                    echo "========================================"
 
-                    echo "Deploying container from image ${REGISTRY}/${IMAGE_NAME}:${TAG}"
-                    sh """
-                        docker run -d \
+                    docker run -d \
                         --name ${CONTAINER_NAME} \
-                        -p ${CONTAINER_PORT}:${CONTAINER_PORT} \
-                        ${REGISTRY}/${IMAGE_NAME}:${TAG}
-                    """
-                }
+                        --restart unless-stopped \
+                        -p ${HOST_PORT}:${CONTAINER_PORT} \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+
+                    echo ""
+                    echo "Container Started Successfully."
+
+                    docker ps --filter "name=${CONTAINER_NAME}"
+                '''
             }
         }
 
-        stage('Cleanup') {
+        stage('Cleanup Old Images') {
             steps {
-                echo 'Cleaning up local Docker resources'
-                sh 'docker system prune -f'
+                sh '''
+                    echo "========================================"
+                    echo "Cleaning Old Docker Images"
+                    echo "========================================"
+
+                    docker images ${IMAGE_NAME} \
+                        --format "{{.Repository}}:{{.Tag}}" \
+                    | grep -v "^${IMAGE_NAME}:${IMAGE_TAG}$" \
+                    | xargs -r docker rmi || true
+
+                    echo ""
+                    echo "Remaining Images:"
+                    docker images ${IMAGE_NAME}
+                '''
             }
         }
     }
 
     post {
-        failure {
-            echo 'Build or deployment is failed'
-        }
+
         success {
-            echo 'Build and deployment is succeeded'
+            echo """
+            ==========================================
+              DEPLOYMENT SUCCESSFUL
+            ==========================================
+
+            Build Number : ${BUILD_NUMBER}
+            Image        : ${IMAGE_NAME}:${IMAGE_TAG}
+            Container    : ${CONTAINER_NAME}
+            Port         : ${HOST_PORT}:${CONTAINER_PORT}
+
+            ==========================================
+            """
+        }
+
+        failure {
+            echo """
+            ==========================================
+              DEPLOYMENT FAILED
+            ==========================================
+
+            Build Number : ${BUILD_NUMBER}
+            Image        : ${IMAGE_NAME}:${IMAGE_TAG}
+            Container    : ${CONTAINER_NAME}
+
+            ==========================================
+            """
+
+            sh '''
+                echo "========================================"
+                echo "Container Status"
+                echo "========================================"
+
+                docker ps -a \
+                    --filter "name=${CONTAINER_NAME}" || true
+
+                echo ""
+                echo "========================================"
+                echo "Container Logs"
+                echo "========================================"
+
+                docker logs --tail 200 \
+                    ${CONTAINER_NAME} 2>&1 || true
+            '''
         }
     }
 }
-*/
+```
